@@ -82,7 +82,7 @@ export function ResultPage() {
           </div>
         </section>
 
-        <section className={`grid gap-3 ${result.summaries.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
+        <section className="grid grid-cols-2 gap-3">
           {result.summaries.map((summary) => (
             <button
               key={summary.playerId}
@@ -90,27 +90,19 @@ export function ResultPage() {
               className="card border border-base-300 bg-base-100 text-left shadow-sm transition hover:border-base-content/20"
               onClick={() => setSelectedPlayerId(summary.playerId)}
             >
-              <div className={`card-body gap-2 ${result.summaries.length === 3 ? "p-3.5" : "p-3"}`}>
-                <div
-                  className={
-                    result.summaries.length === 3
-                      ? "flex flex-col gap-3"
-                      : "flex items-center justify-between gap-2"
-                  }
-                >
-                  <div className={`flex min-w-0 items-center gap-2 ${result.summaries.length === 3 ? "justify-center" : ""}`}>
+              <div className="card-body gap-2 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
                     <PlayerBadge index={getPlayerIndexFromId(summary.playerId)} className="h-6 w-6 text-xs" />
                     <h2 className="truncate text-sm font-bold">{summary.playerName}</h2>
                   </div>
-                  <div className={result.summaries.length === 3 ? "flex justify-end" : ""}>
-                    <div className={`badge badge-sm ${summary.totalPoint >= 0 ? "badge-primary" : "badge-neutral"}`}>
-                      {formatDelta(summary.totalPoint)}
-                    </div>
+                  <div className={`badge badge-sm ${summary.totalPoint >= 0 ? "badge-primary" : "badge-neutral"}`}>
+                    {formatDelta(summary.totalPoint)}
                   </div>
                 </div>
-                {result.summaries.length !== 3 ? (
-                  <p className="text-[11px] text-base-content/55">タップで内訳</p>
-                ) : null}
+                <p className="text-[11px] text-base-content/55">
+                  タップで内訳
+                </p>
               </div>
             </button>
           ))}
