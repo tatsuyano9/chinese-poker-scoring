@@ -62,9 +62,10 @@ export function RoyaltyHelp() {
 
       {open ? (
         <dialog open className="modal modal-open">
-          <div className="modal-box my-6 max-h-[calc(100vh-3rem)] max-w-2xl overflow-y-auto">
-            <div className="overflow-hidden rounded-2xl border border-base-300 bg-base-100">
-              <div className="grid grid-cols-3">
+          <div className="modal-box my-8 flex max-h-[calc(100vh-8rem)] max-w-2xl flex-col overflow-hidden p-0">
+            <div className="flex-1 overflow-y-auto">
+              <div className="overflow-hidden rounded-t-2xl border-x border-t border-base-300 bg-base-100">
+                <div className="grid grid-cols-3">
                 <section className="row-span-2 border-r border-base-300">
                   <header className="bg-base-200 px-3 py-3 text-center">
                     <h3 className="text-base font-bold">上段</h3>
@@ -143,8 +144,9 @@ export function RoyaltyHelp() {
                 </section>
               </div>
             </div>
+            </div>
 
-            <div className="modal-action px-1 pt-4">
+            <div className="flex shrink-0 justify-end border border-base-300 border-t-0 rounded-b-2xl bg-base-100 px-4 py-3">
               <button type="button" className="btn" onClick={() => setOpen(false)}>
                 閉じる
               </button>

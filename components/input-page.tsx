@@ -205,27 +205,29 @@ export function InputPage() {
     <>
       <RoyaltyHelp />
       <div className="space-y-4 pb-28">
-        <section className="rounded-[28px] border border-base-300 bg-base-100 px-4 py-5 shadow-sm">
+        <section className="rounded-[24px] border border-base-300 bg-base-100 px-4 py-3 shadow-sm">
           <div className="space-y-2">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">Chinese Poker Scoring</p>
-              <h1 className="mt-1 text-2xl font-bold tracking-tight">役入力</h1>
-            </div>
-            <div className="join w-full">
-              <button
-                type="button"
-                className={`btn btn-sm join-item flex-1 ${playerCount === 3 ? "btn-primary" : "btn-outline"}`}
-                onClick={() => setPlayerCount(3)}
-              >
-                3人
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm join-item flex-1 ${playerCount === 4 ? "btn-primary" : "btn-outline"}`}
-                onClick={() => setPlayerCount(4)}
-              >
-                4人
-              </button>
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">Chinese Poker Scoring</p>
+                <h1 className="mt-0.5 text-xl font-bold tracking-tight">役入力</h1>
+              </div>
+              <div className="join shrink-0">
+                <button
+                  type="button"
+                  className={`btn btn-xs join-item min-w-14 ${playerCount === 3 ? "btn-primary" : "btn-outline"}`}
+                  onClick={() => setPlayerCount(3)}
+                >
+                  3人
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-xs join-item min-w-14 ${playerCount === 4 ? "btn-primary" : "btn-outline"}`}
+                  onClick={() => setPlayerCount(4)}
+                >
+                  4人
+                </button>
+              </div>
             </div>
           </div>
         </section>

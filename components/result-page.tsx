@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
 import { type MatchResult, getCompactHandParts, getCompactLineLabel, getLineLabel } from "@/lib/chinese-poker";
 import { PlayerBadge } from "@/components/player-badge";
 import { RoyaltyHelp } from "@/components/royalty-help";
@@ -66,19 +68,21 @@ export function ResultPage() {
     <>
       <RoyaltyHelp />
       <div className="space-y-4 pb-8">
-        <section className="rounded-[28px] border border-base-300 bg-base-100 p-4 shadow-sm">
+        <section className="rounded-[24px] border border-base-300 bg-base-100 px-4 py-3 shadow-sm">
           <div className="space-y-2">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">Chinese Poker Scoring</p>
-              <h1 className="mt-1 text-2xl font-bold tracking-tight">結果</h1>
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">Chinese Poker Scoring</p>
+                <h1 className="mt-0.5 text-xl font-bold tracking-tight">結果</h1>
+              </div>
+              <Link href="/" className="btn btn-xs btn-outline min-w-20 shrink-0">
+                入力に戻る
+              </Link>
             </div>
-            <Link href="/" className="btn btn-outline w-full">
-              入力に戻る
-            </Link>
           </div>
         </section>
 
-        <section className="grid grid-cols-2 gap-3">
+        <section className={`grid gap-3 ${result.summaries.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
           {result.summaries.map((summary) => (
             <button
               key={summary.playerId}
@@ -86,17 +90,27 @@ export function ResultPage() {
               className="card border border-base-300 bg-base-100 text-left shadow-sm transition hover:border-base-content/20"
               onClick={() => setSelectedPlayerId(summary.playerId)}
             >
-              <div className="card-body gap-2 p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-2">
+              <div className={`card-body gap-2 ${result.summaries.length === 3 ? "p-3.5" : "p-3"}`}>
+                <div
+                  className={
+                    result.summaries.length === 3
+                      ? "flex flex-col gap-3"
+                      : "flex items-center justify-between gap-2"
+                  }
+                >
+                  <div className={`flex min-w-0 items-center gap-2 ${result.summaries.length === 3 ? "justify-center" : ""}`}>
                     <PlayerBadge index={getPlayerIndexFromId(summary.playerId)} className="h-6 w-6 text-xs" />
                     <h2 className="truncate text-sm font-bold">{summary.playerName}</h2>
                   </div>
-                  <div className={`badge badge-sm ${summary.totalPoint >= 0 ? "badge-primary" : "badge-neutral"}`}>
-                    {formatDelta(summary.totalPoint)}
+                  <div className={result.summaries.length === 3 ? "flex justify-end" : ""}>
+                    <div className={`badge badge-sm ${summary.totalPoint >= 0 ? "badge-primary" : "badge-neutral"}`}>
+                      {formatDelta(summary.totalPoint)}
+                    </div>
                   </div>
                 </div>
-                <p className="text-[11px] text-base-content/55">タップで内訳</p>
+                {result.summaries.length !== 3 ? (
+                  <p className="text-[11px] text-base-content/55">タップで内訳</p>
+                ) : null}
               </div>
             </button>
           ))}
@@ -110,9 +124,11 @@ export function ResultPage() {
             </div>
             <div className="space-y-2">
               {result.pairResults.map((pair) => (
-                <div
+                <button
+                  type="button"
                   key={`${pair.leftPlayerId}-${pair.rightPlayerId}`}
-                  className="flex items-center justify-between rounded-2xl bg-base-200 px-3 py-3"
+                  className="flex w-full items-center justify-between rounded-2xl bg-base-200 px-3 py-3 text-left transition hover:bg-base-300/70"
+                  onClick={() => setSelectedPairKey(`${pair.leftPlayerId}-${pair.rightPlayerId}`)}
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 text-sm font-semibold">
@@ -128,14 +144,13 @@ export function ResultPage() {
                         : "精算なし"}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    className="btn btn-xs btn-outline shrink-0"
-                    onClick={() => setSelectedPairKey(`${pair.leftPlayerId}-${pair.rightPlayerId}`)}
+                  <span
+                    className="pointer-events-none mr-1 shrink-0 text-base-content/55"
+                    aria-hidden="true"
                   >
-                    詳細
-                  </button>
-                </div>
+                    <FontAwesomeIcon icon={faExternalLinkAlt} className="h-5 w-5" />
+                  </span>
+                </button>
               ))}
             </div>
           </div>

@@ -281,26 +281,26 @@ export const getCompactHandLabel = (handName: string) => {
     const originalRest = match[2];
     const rest = originalRest
       .replace("ストレートフラッシュ", "SF")
-      .replace("フォーカード", "4カード")
+      .replace("フォーカード", "4C")
       .replace("フルハウス", "フル")
       .replace("フラッシュ", "フラ")
       .replace("ストレート", "スト")
-      .replace("スリーカード", "3カード")
-      .replace("ツーペア", "2ペア")
-      .replace("ワンペア", "1ペア")
+      .replace("スリーカード", "3C")
+      .replace("ツーペア", "2P")
+      .replace("ワンペア", "1P")
       .replace("ハイ", originalRest === "ハイ" ? "ハイ" : "");
     return `${rank} ${rest}`.trim();
   }
 
   return handName
     .replace("ストレートフラッシュ", "SF")
-    .replace("フォーカード", "4カード")
+    .replace("フォーカード", "4C")
     .replace("フルハウス", "フル")
     .replace("フラッシュ", "フラ")
     .replace("ストレート", "スト")
-    .replace("スリーカード", "3カード")
-    .replace("ツーペア", "2ペア")
-    .replace("ワンペア", "1ペア")
+    .replace("スリーカード", "3C")
+    .replace("ツーペア", "2P")
+    .replace("ワンペア", "1P")
     .replace("ハイカード", "ハイ");
 };
 
