@@ -15,6 +15,8 @@ export type FiveCardCategory =
   | "straightFlush"
   | "royalFlush";
 
+type Category = TopCategory | FiveCardCategory;
+
 export type TopLineInput = {
   category: TopCategory;
   primaryRank: Rank;
@@ -28,6 +30,7 @@ export type FiveCardLineInput = {
 export type PlayerInput = {
   id: string;
   name: string;
+  isFoul: boolean;
   top: TopLineInput;
   middle: FiveCardLineInput;
   bottom: FiveCardLineInput;
@@ -37,14 +40,12 @@ export type MatchInput = {
   players: PlayerInput[];
 };
 
-type Category = TopCategory | FiveCardCategory;
-
 type EvaluatedHand = {
   line: LineKey;
   handName: string;
   category: Category;
   strength: number;
-  tiebreakers: number[];
+  primaryValue: number;
   royalty: number;
   royaltyLabel: string | null;
 };
@@ -52,11 +53,27 @@ type EvaluatedHand = {
 type PlayerEvaluation = {
   playerId: string;
   playerName: string;
+  isFoul: boolean;
   top: EvaluatedHand;
   middle: EvaluatedHand;
   bottom: EvaluatedHand;
   royaltyTotal: number;
 };
+
+export type ManualDecisionWinner = "left" | "right" | "tie";
+
+export type ManualDecisionRequest = {
+  id: string;
+  leftPlayerId: string;
+  leftPlayerName: string;
+  rightPlayerId: string;
+  rightPlayerName: string;
+  line: LineKey;
+  leftHandName: string;
+  rightHandName: string;
+};
+
+export type ManualDecisionMap = Record<string, ManualDecisionWinner>;
 
 export type LineBattleResult = {
   line: LineKey;
@@ -194,46 +211,115 @@ export const FIVE_CARD_CATEGORY_OPTIONS: Array<{ value: FiveCardCategory; label:
   { value: "royalFlush", label: "ロイヤルストレートフラッシュ" },
 ];
 
+const rankLabel = (rank: Rank) => rank;
+const toRankValue = (rank: Rank) => RANK_VALUE[rank];
 export const getLineLabel = (line: LineKey) => LINE_LABELS[line];
+export const getCompactLineLabel = (line: LineKey) =>
+  line === "top" ? "トップ" : line === "middle" ? "ミドル" : "ボトム";
 
-export const getRankLabel = (rank: Rank) => rank;
+export const createTopLineInput = (
+  category: TopCategory = "highCard",
+  primaryRank: Rank = "A",
+): TopLineInput => ({
+  category,
+  primaryRank,
+});
 
-export const getPrimaryRankLabel = (line: LineKey, category: Category, rank: Rank) => {
+export const createFiveCardLineInput = (
+  category: FiveCardCategory = "highCard",
+  primaryRank: Rank = "A",
+): FiveCardLineInput => ({
+  category,
+  primaryRank,
+});
+
+export const getLineSummary = (
+  line: LineKey,
+  input: TopLineInput | FiveCardLineInput,
+) => {
   if (line === "top") {
-    if (category === "onePair") {
-      return `${rank}のワンペア`;
+    if (input.category === "highCard") {
+      return `${rankLabel(input.primaryRank)}ハイ`;
     }
-    if (category === "threeOfAKind") {
-      return `${rank}のスリーカード`;
+    if (input.category === "onePair") {
+      return `${rankLabel(input.primaryRank)}のワンペア`;
     }
-    return `${rank}ハイ`;
+    return `${rankLabel(input.primaryRank)}のスリーカード`;
   }
 
-  if (category === "royalFlush") {
-    return "ロイヤルストレートフラッシュ";
+  switch (input.category) {
+    case "highCard":
+      return `${rankLabel(input.primaryRank)}ハイ`;
+    case "onePair":
+      return `${rankLabel(input.primaryRank)}のワンペア`;
+    case "twoPair":
+      return `${rankLabel(input.primaryRank)}トップのツーペア`;
+    case "threeOfAKind":
+      return `${rankLabel(input.primaryRank)}のスリーカード`;
+    case "straight":
+    case "straightFlush":
+      return `${rankLabel(input.primaryRank)}ハイ${HAND_NAME_JA[input.category]}`;
+    case "flush":
+      return `${rankLabel(input.primaryRank)}ハイフラッシュ`;
+    case "fullHouse":
+      return `${rankLabel(input.primaryRank)}のフルハウス`;
+    case "fourOfAKind":
+      return `${rankLabel(input.primaryRank)}のフォーカード`;
+    case "royalFlush":
+      return HAND_NAME_JA[input.category];
   }
-  if (category === "straight" || category === "straightFlush") {
-    return `${rank}ハイ${HAND_NAME_JA[category]}`;
+};
+
+export const getCompactHandLabel = (handName: string) => {
+  if (handName === "ロイヤルストレートフラッシュ") {
+    return "RF";
   }
-  if (category === "onePair") {
-    return `${rank}のワンペア`;
+
+  const match = handName.match(/^([2-9TJQKA])(?:トップ)?(?:の)?(.+)$/);
+  if (match) {
+    const rank = match[1];
+    const originalRest = match[2];
+    const rest = originalRest
+      .replace("ストレートフラッシュ", "SF")
+      .replace("フォーカード", "4カード")
+      .replace("フルハウス", "フル")
+      .replace("フラッシュ", "フラ")
+      .replace("ストレート", "スト")
+      .replace("スリーカード", "3カード")
+      .replace("ツーペア", "2ペア")
+      .replace("ワンペア", "1ペア")
+      .replace("ハイ", originalRest === "ハイ" ? "ハイ" : "");
+    return `${rank} ${rest}`.trim();
   }
-  if (category === "twoPair") {
-    return `${rank}トップのツーペア`;
+
+  return handName
+    .replace("ストレートフラッシュ", "SF")
+    .replace("フォーカード", "4カード")
+    .replace("フルハウス", "フル")
+    .replace("フラッシュ", "フラ")
+    .replace("ストレート", "スト")
+    .replace("スリーカード", "3カード")
+    .replace("ツーペア", "2ペア")
+    .replace("ワンペア", "1ペア")
+    .replace("ハイカード", "ハイ");
+};
+
+export const getCompactHandParts = (handName: string) => {
+  const normalized = getCompactHandLabel(handName);
+  const parts = normalized.split(" ").filter(Boolean);
+
+  if (parts.length === 1) {
+    return {
+      rank: null,
+      label: parts[0],
+    };
   }
-  if (category === "threeOfAKind") {
-    return `${rank}のスリーカード`;
-  }
-  if (category === "fullHouse") {
-    return `${rank}のフルハウス`;
-  }
-  if (category === "fourOfAKind") {
-    return `${rank}のフォーカード`;
-  }
-  if (category === "flush" || category === "highCard") {
-    return `${rank}ハイ${HAND_NAME_JA[category]}`;
-  }
-  return HAND_NAME_JA[category];
+
+  const [rank, ...rest] = parts;
+  return {
+    rank,
+    label: rest.join(" "),
+  };
 };
 
 const getRoyalty = (line: LineKey, category: Category, primaryValue: number) => {
@@ -286,42 +372,34 @@ const getRoyalty = (line: LineKey, category: Category, primaryValue: number) => 
   return 0;
 };
 
-const compareArrays = (left: number[], right: number[]) => {
-  const maxLength = Math.max(left.length, right.length);
-  for (let index = 0; index < maxLength; index += 1) {
-    const leftValue = left[index] ?? 0;
-    const rightValue = right[index] ?? 0;
-    if (leftValue > rightValue) {
-      return 1;
-    }
-    if (leftValue < rightValue) {
-      return -1;
-    }
+const isComparisonAmbiguous = (line: LineKey, category: Category) => {
+  if (line === "top") {
+    return category === "highCard" || category === "onePair";
   }
-  return 0;
-};
 
-const compareHands = (left: EvaluatedHand, right: EvaluatedHand) => {
-  if (left.strength > right.strength) {
-    return 1;
-  }
-  if (left.strength < right.strength) {
-    return -1;
-  }
-  return compareArrays(left.tiebreakers, right.tiebreakers);
+  return (
+    category === "highCard" ||
+    category === "onePair" ||
+    category === "twoPair" ||
+    category === "threeOfAKind" ||
+    category === "flush" ||
+    category === "fullHouse" ||
+    category === "fourOfAKind"
+  );
 };
 
 const evaluateTopHand = (input: TopLineInput): EvaluatedHand => {
-  const primaryValue = RANK_VALUE[input.primaryRank];
-  const handName = getPrimaryRankLabel("top", input.category, input.primaryRank);
+  const primaryValue = toRankValue(input.primaryRank);
+  const handName = getLineSummary("top", input);
+  const royalty = getRoyalty("top", input.category, primaryValue);
   return {
     line: "top",
     handName,
     category: input.category,
     strength: TOP_STRENGTH[input.category],
-    tiebreakers: [primaryValue],
-    royalty: getRoyalty("top", input.category, primaryValue),
-    royaltyLabel: getRoyalty("top", input.category, primaryValue) > 0 ? handName : null,
+    primaryValue,
+    royalty,
+    royaltyLabel: royalty > 0 ? handName : null,
   };
 };
 
@@ -329,17 +407,78 @@ const evaluateFiveCardHand = (
   line: Exclude<LineKey, "top">,
   input: FiveCardLineInput,
 ): EvaluatedHand => {
-  const primaryValue = input.category === "royalFlush" ? 14 : RANK_VALUE[input.primaryRank];
-  const handName = getPrimaryRankLabel(line, input.category, input.primaryRank);
+  const primaryValue = input.category === "royalFlush" ? 14 : toRankValue(input.primaryRank);
+  const handName = getLineSummary(line, input);
+  const royalty = getRoyalty(line, input.category, primaryValue);
   return {
     line,
     handName,
     category: input.category,
     strength: FIVE_CARD_STRENGTH[input.category],
-    tiebreakers: [primaryValue],
-    royalty: getRoyalty(line, input.category, primaryValue),
-    royaltyLabel: getRoyalty(line, input.category, primaryValue) > 0 ? handName : null,
+    primaryValue,
+    royalty,
+    royaltyLabel: royalty > 0 ? handName : null,
   };
+};
+
+const compareHandsForOrdering = (left: EvaluatedHand, right: EvaluatedHand) => {
+  if (left.strength !== right.strength) {
+    return left.strength - right.strength;
+  }
+  return left.primaryValue - right.primaryValue;
+};
+
+const evaluatePlayer = (player: PlayerInput): PlayerEvaluation => {
+  if (player.isFoul) {
+    const foulHand: EvaluatedHand = {
+      line: "top",
+      handName: "ファウル",
+      category: "highCard",
+      strength: -1,
+      primaryValue: -1,
+      royalty: 0,
+      royaltyLabel: null,
+    };
+
+    return {
+      playerId: player.id,
+      playerName: player.name,
+      isFoul: true,
+      top: { ...foulHand, line: "top" },
+      middle: { ...foulHand, line: "middle" },
+      bottom: { ...foulHand, line: "bottom" },
+      royaltyTotal: 0,
+    };
+  }
+
+  const top = evaluateTopHand(player.top);
+  const middle = evaluateFiveCardHand("middle", player.middle);
+  const bottom = evaluateFiveCardHand("bottom", player.bottom);
+
+  if (compareHandsForOrdering(bottom, middle) < 0 || compareHandsForOrdering(middle, top) < 0) {
+    throw new Error(`${player.name} の並びが不正です。ボトム >= ミドル >= トップ になるようにしてください。`);
+  }
+
+  return {
+    playerId: player.id,
+    playerName: player.name,
+    isFoul: false,
+    top,
+    middle,
+    bottom,
+    royaltyTotal: top.royalty + middle.royalty + bottom.royalty,
+  };
+};
+
+const validateInput = (input: MatchInput) => {
+  if (input.players.length !== 3 && input.players.length !== 4) {
+    throw new Error("プレイヤー人数は3人または4人にしてください。");
+  }
+  for (const player of input.players) {
+    if (!player.name.trim()) {
+      throw new Error("プレイヤー名を入力してください。");
+    }
+  }
 };
 
 const toRoyaltyDetails = (evaluation: PlayerEvaluation): RoyaltyDetail[] => {
@@ -353,38 +492,95 @@ const toRoyaltyDetails = (evaluation: PlayerEvaluation): RoyaltyDetail[] => {
     }));
 };
 
-const validateInput = (input: MatchInput) => {
-  if (input.players.length !== 3 && input.players.length !== 4) {
-    throw new Error("プレイヤー人数は3人または4人にしてください。");
+const buildDecisionId = (leftPlayerId: string, rightPlayerId: string, line: LineKey) =>
+  `${leftPlayerId}:${rightPlayerId}:${line}`;
+
+type ComparisonOutcome =
+  | { kind: "auto"; winner: ManualDecisionWinner }
+  | { kind: "manual"; id: string };
+
+const resolveLineOutcome = (
+  left: PlayerEvaluation,
+  right: PlayerEvaluation,
+  line: LineKey,
+  decisions: ManualDecisionMap,
+): ComparisonOutcome => {
+  if (left.isFoul && right.isFoul) {
+    return { kind: "auto", winner: "tie" };
+  }
+  if (left.isFoul) {
+    return { kind: "auto", winner: "right" };
+  }
+  if (right.isFoul) {
+    return { kind: "auto", winner: "left" };
   }
 
-  for (const player of input.players) {
-    if (!player.name.trim()) {
-      throw new Error("プレイヤー名を入力してください。");
+  const leftHand = left[line];
+  const rightHand = right[line];
+
+  if (leftHand.strength > rightHand.strength) {
+    return { kind: "auto", winner: "left" };
+  }
+  if (leftHand.strength < rightHand.strength) {
+    return { kind: "auto", winner: "right" };
+  }
+  if (leftHand.primaryValue > rightHand.primaryValue) {
+    return { kind: "auto", winner: "left" };
+  }
+  if (leftHand.primaryValue < rightHand.primaryValue) {
+    return { kind: "auto", winner: "right" };
+  }
+
+  if (!isComparisonAmbiguous(line, leftHand.category)) {
+    return { kind: "auto", winner: "tie" };
+  }
+
+  const id = buildDecisionId(left.playerId, right.playerId, line);
+  const manualWinner = decisions[id];
+  if (!manualWinner) {
+    return { kind: "manual", id };
+  }
+  return { kind: "auto", winner: manualWinner };
+};
+
+export const getManualDecisionRequests = (input: MatchInput): ManualDecisionRequest[] => {
+  validateInput(input);
+  const evaluations = input.players.map(evaluatePlayer);
+  const requests: ManualDecisionRequest[] = [];
+
+  for (let leftIndex = 0; leftIndex < evaluations.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < evaluations.length; rightIndex += 1) {
+      const left = evaluations[leftIndex];
+      const right = evaluations[rightIndex];
+
+      for (const line of ["top", "middle", "bottom"] as const) {
+        if (left.isFoul || right.isFoul) {
+          continue;
+        }
+        const outcome = resolveLineOutcome(left, right, line, {});
+        if (outcome.kind === "manual") {
+          requests.push({
+            id: outcome.id,
+            leftPlayerId: left.playerId,
+            leftPlayerName: left.playerName,
+            rightPlayerId: right.playerId,
+            rightPlayerName: right.playerName,
+            line,
+            leftHandName: left[line].handName,
+            rightHandName: right[line].handName,
+          });
+        }
+      }
     }
   }
+
+  return requests;
 };
 
-const evaluatePlayer = (player: PlayerInput): PlayerEvaluation => {
-  const top = evaluateTopHand(player.top);
-  const middle = evaluateFiveCardHand("middle", player.middle);
-  const bottom = evaluateFiveCardHand("bottom", player.bottom);
-
-  if (compareHands(bottom, middle) < 0 || compareHands(middle, top) < 0) {
-    throw new Error(`${player.name} の並びが不正です。ボトム >= ミドル >= トップ になるようにしてください。`);
-  }
-
-  return {
-    playerId: player.id,
-    playerName: player.name,
-    top,
-    middle,
-    bottom,
-    royaltyTotal: top.royalty + middle.royalty + bottom.royalty,
-  };
-};
-
-export const calculateMatchResult = (input: MatchInput): MatchResult => {
+export const calculateMatchResult = (
+  input: MatchInput,
+  decisions: ManualDecisionMap = {},
+): MatchResult => {
   validateInput(input);
   const evaluations = input.players.map(evaluatePlayer);
 
@@ -407,60 +603,75 @@ export const calculateMatchResult = (input: MatchInput): MatchResult => {
     for (let rightIndex = leftIndex + 1; rightIndex < evaluations.length; rightIndex += 1) {
       const left = evaluations[leftIndex];
       const right = evaluations[rightIndex];
-      const lines: LineKey[] = ["top", "middle", "bottom"];
       let leftWins = 0;
       let rightWins = 0;
       let battleDelta = 0;
 
-      const lineResults = lines.map((line) => {
-        const leftHand = left[line];
-        const rightHand = right[line];
-        const comparison = compareHands(leftHand, rightHand);
+      const lineResults: LineBattleResult[] = [];
+      for (const line of ["top", "middle", "bottom"] as const) {
+        const outcome = resolveLineOutcome(left, right, line, decisions);
+        if (outcome.kind === "manual") {
+          throw new Error("勝敗確認が未完了の段があります。");
+        }
 
-        if (comparison > 0) {
+        if (outcome.winner === "left") {
           leftWins += 1;
           battleDelta += 1;
-          return {
+          lineResults.push({
             line,
             winnerId: left.playerId,
             winnerName: left.playerName,
             loserId: right.playerId,
             loserName: right.playerName,
             scoreSwing: 1,
-            leftHandName: leftHand.handName,
-            rightHandName: rightHand.handName,
-          };
-        }
-        if (comparison < 0) {
+            leftHandName: left[line].handName,
+            rightHandName: right[line].handName,
+          });
+        } else if (outcome.winner === "right") {
           rightWins += 1;
           battleDelta -= 1;
-          return {
+          lineResults.push({
             line,
             winnerId: right.playerId,
             winnerName: right.playerName,
             loserId: left.playerId,
             loserName: left.playerName,
             scoreSwing: 1,
-            leftHandName: leftHand.handName,
-            rightHandName: rightHand.handName,
-          };
+            leftHandName: left[line].handName,
+            rightHandName: right[line].handName,
+          });
+        } else {
+          lineResults.push({
+            line,
+            winnerId: null,
+            winnerName: null,
+            loserId: null,
+            loserName: null,
+            scoreSwing: 0,
+            leftHandName: left[line].handName,
+            rightHandName: right[line].handName,
+          });
         }
-        return {
-          line,
-          winnerId: null,
-          winnerName: null,
-          loserId: null,
-          loserName: null,
-          scoreSwing: 0,
-          leftHandName: leftHand.handName,
-          rightHandName: rightHand.handName,
-        };
-      });
+      }
 
       let scoopWinnerId: string | null = null;
       let scoopWinnerName: string | null = null;
       let scoopDelta = 0;
-      if (leftWins === 3) {
+      if (left.isFoul && !right.isFoul) {
+        scoopWinnerId = right.playerId;
+        scoopWinnerName = right.playerName;
+        battleDelta = -3;
+        rightWins = 3;
+        leftWins = 0;
+        scoopDelta = -3;
+      } else if (right.isFoul && !left.isFoul) {
+        scoopWinnerId = left.playerId;
+        scoopWinnerName = left.playerName;
+        battleDelta = 3;
+        leftWins = 3;
+        rightWins = 0;
+        scoopDelta = 3;
+      } else if (leftWins === 3) {
         scoopWinnerId = left.playerId;
         scoopWinnerName = left.playerName;
         scoopDelta = 3;
